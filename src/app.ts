@@ -1,5 +1,9 @@
 import express from 'express'
 import { CustomError } from './utils/customError'
+import bodyParser from 'body-parser'
+import cors from 'cors'
+import { ConnectDB } from './database/connectDB'
+import userRoute from './route/userRoute'
 
 export class Server {
     // declaration app
@@ -15,6 +19,18 @@ export class Server {
     // config for all configuration app
     setConfig() {
         this.app.use(express.json())
+        ConnectDB()
+        this.app.use(cors())
+        this.setBodyParser()
+    }
+
+    // set body parser
+    setBodyParser() {
+        this.app.use(bodyParser.urlencoded(
+            {
+                extended: true
+            }
+        ))
     }
 
     // config for all routes if exists
@@ -27,6 +43,8 @@ export class Server {
                 }
             )
         })
+        // user router
+        this.app.use('/api/user', userRoute)
     }
 
     // handler for router not exists
@@ -43,19 +61,18 @@ export class Server {
 
     // handler all error in app if occurs
     setErrorHandler() {
-        this.app.use((error: any, req: express.Request, res: express.Response) => {
-            const error_status = error instanceof CustomError ? error.status_code : 500
-            const message = error.message || 'something wrong, please try again'
+        this.app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+            const errorStatus = error instanceof CustomError ? error.statusCode : 500
+            const message = error.message || "something wrong, please try again"
             const response: any = {
-                status_code: error_status,
+                status_code: errorStatus,
                 message: message
             }
-
             if (error instanceof CustomError && error.data) {
                 response.data = error.data
             }
 
-            res.status(error_status).json(response)
+            res.status(errorStatus).json(response)
         })
     }
 }
