@@ -4,6 +4,7 @@ import bodyParser from 'body-parser'
 import cors from 'cors'
 import { ConnectDB } from './database/connectDB'
 import userRoute from './route/userRoute'
+import restaurantRoute from './route/restaurantRoute'
 
 export class Server {
     // declaration app
@@ -45,6 +46,8 @@ export class Server {
         })
         // user router
         this.app.use('/api/user', userRoute)
+        // restaurant router
+        this.app.use('/api/restaurant', restaurantRoute)
     }
 
     // handler for router not exists

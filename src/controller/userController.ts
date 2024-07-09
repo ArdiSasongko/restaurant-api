@@ -9,9 +9,9 @@ export class UserController {
     static async registerUser(req: express.Request, res: express.Response, next: express.NextFunction) {
         const data = req.body
         const role = req.query.role as string || 'buyer'
-        const defaultImg = Bun.env.DEFAULT_IMG!
         const file = req.file
         try {
+            const defaultImg = Bun.env.DEFAULT_IMG!
             // Register user
             const newUser = await UserService.registerUser(data, file, defaultImg, role)
             res.status(201).json({

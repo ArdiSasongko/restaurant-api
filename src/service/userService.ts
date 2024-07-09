@@ -20,9 +20,7 @@ export class UserService {
             // check if username or email already exits
             const user = await userModel.findOne({ $or: [{ username: request.username }, { email: request.email }] });
 
-            if (user) {
-                throw new CustomError(409, 'Username or email already exists');
-            }
+            if (user) throw new CustomError(409, 'Username or email already exists');
 
             // hash password
             const hashPassword = await Bun.password.hash(request.password, {
@@ -61,9 +59,7 @@ export class UserService {
 
             const saveUser = await userModel.create(newUser);
 
-            if (!saveUser) {
-                throw new CustomError(400, 'Failed to save user data')
-            }
+            if (!saveUser) throw new CustomError(400, 'Failed to save user data')
 
             // send token to email
             await SendEmail.sendEmail(
@@ -89,14 +85,10 @@ export class UserService {
             // Find email
             const findEmail = await userModel.findOne({ email })
 
-            if (!findEmail) {
-                throw new CustomError(404, "Email not found")
-            }
+            if (!findEmail) throw new CustomError(404, "Email not found")
 
             // check if email verified
-            if (findEmail.is_verified === true) {
-                throw new CustomError(400, "Email already verified")
-            }
+            if (findEmail.is_verified === true) throw new CustomError(400, "Email already verified")
 
             // generate new token and expired time
             const token: string = Utils.generatedRandom()
@@ -136,9 +128,7 @@ export class UserService {
                 }
             )
 
-            if (validEmail) {
-                throw new CustomError(400, "Email already verified, thanks")
-            }
+            if (validEmail) throw new CustomError(400, "Email already verified, thanks")
 
             const user = await userModel.findOneAndUpdate({
                 email: email,
@@ -151,9 +141,8 @@ export class UserService {
                 updated_at: moment().tz('Asia/Jakarta', true).format()
             })
 
-            if (!user) {
-                return false
-            }
+            if (!user) return false
+
             return true
         } catch (error) {
             if (error instanceof ZodError) {
@@ -168,32 +157,22 @@ export class UserService {
         try {
             const request = await userValidator.login.parseAsync(data)
 
-            if (!request.username && !request.email) {
-                throw new CustomError(404, "Please fill username or email for login");
-            }
+            if (!request.username && !request.email) throw new CustomError(404, "Please fill username or email for login");
 
             let user;
 
             // if using username
-            if (request.username) {
-                user = await userModel.findOne({ username: request.username });
-            }
+            if (request.username) user = await userModel.findOne({ username: request.username });
 
             // if using email
-            if (!user && request.email) {
-                user = await userModel.findOne({ email: request.email });
-            }
+            if (!user && request.email) user = await userModel.findOne({ email: request.email });
 
-            if (!user) {
-                throw new CustomError(404, "user not found")
-            }
+            if (!user) throw new CustomError(404, "user not found")
 
             // check password if not match
             const isMatch = await Bun.password.verify(request.password, user.password, 'bcrypt')
 
-            if (!isMatch) {
-                throw new CustomError(400, "Invalid Password, please try again")
-            }
+            if (!isMatch) throw new CustomError(400, "Invalid Password, please try again")
 
             const payload = {
                 id: user._id,
@@ -205,9 +184,7 @@ export class UserService {
 
             const token = await Utils.signJWT(payload)
 
-            if (!token) {
-                throw new CustomError(400, "Failed to generated token")
-            }
+            if (!token) throw new CustomError(400, "Failed to generated token")
 
             return token
         } catch (error) {
@@ -226,9 +203,7 @@ export class UserService {
             // check email if not found
             const user = await userModel.findOne({ email: request.email })
 
-            if (!user) {
-                throw new CustomError(404, "Email not found")
-            }
+            if (!user) throw new CustomError(404, "Email not found")
 
             // create random token for otp
             const token = Utils.generatedRandom()
@@ -277,14 +252,10 @@ export class UserService {
                 reset_token_expired: { $gt: Date.now() }
             })
 
-            if (!user) {
-                throw new CustomError(400, "user not found or token expired")
-            }
+            if (!user) throw new CustomError(400, "user not found or token expired")
 
             // check if password not match
-            if (request.new_password !== request.valid_password) {
-                throw new CustomError(400, "Password not match")
-            }
+            if (request.new_password !== request.valid_password) throw new CustomError(400, "Password not match")
 
             // hash password
             const hashPassword = await Bun.password.hash(request.new_password, {
@@ -307,9 +278,7 @@ export class UserService {
                 }
             )
 
-            if (!updatePassword) {
-                throw new CustomError(400, "Failed to update password")
-            }
+            if (!updatePassword) throw new CustomError(400, "Failed to update password")
 
             return true
         } catch (error) {
@@ -328,21 +297,15 @@ export class UserService {
             // find user by id
             const user = await userModel.findById(id)
 
-            if (!user) {
-                throw new CustomError(404, "User not found")
-            }
+            if (!user) throw new CustomError(404, "User not found")
 
             // check if username already exits
             const checkUsername = await userModel.findOne({ username: request.username })
 
-            if (checkUsername) {
-                throw new CustomError(409, "Username already exits")
-            }
+            if (checkUsername) throw new CustomError(409, "Username already exits")
 
             // check if not update username
-            if (!request.username) {
-                request.username = user.username
-            }
+            if (!request.username) request.username = user.username
 
             let imageUrl = user.picture
 
@@ -379,9 +342,7 @@ export class UserService {
                     new: true
                 }).select('name email username picture role')
 
-            if (!updateProfile) {
-                throw new CustomError(400, "Failed to update profile")
-            }
+            if (!updateProfile) throw new CustomError(400, "Failed to update profile")
 
             return updateProfile
         } catch (error) {
