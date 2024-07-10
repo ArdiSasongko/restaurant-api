@@ -49,7 +49,6 @@ export class Middleware {
     static async roleAccess(req: express.Request, res: express.Response, next: express.NextFunction) {
         try {
             const role = (req as any).user.role
-            console.log(role);
 
             // check role
             if (role !== 'seller' && role !== 'admin') throw new CustomError(400, 'Access denied, you are not authorized')

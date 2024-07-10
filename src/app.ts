@@ -5,6 +5,8 @@ import cors from 'cors'
 import { ConnectDB } from './database/connectDB'
 import userRoute from './route/userRoute'
 import restaurantRoute from './route/restaurantRoute'
+import buyerRoute from './route/buyerRoute'
+import sellerRoute from './route/sellerRoute'
 
 export class Server {
     // declaration app
@@ -48,6 +50,10 @@ export class Server {
         this.app.use('/api/user', userRoute)
         // restaurant router
         this.app.use('/api/restaurant', restaurantRoute)
+        // buyer router
+        this.app.use('/api/buyer', buyerRoute)
+        // seller router
+        this.app.use('/api/seller', sellerRoute)
     }
 
     // handler for router not exists

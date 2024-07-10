@@ -17,7 +17,9 @@ class RestaurantRoute {
 
     // for get request
     getRouter() {
+        this.router.get('/', RestaurantController.getRestaurants)
         this.router.get('/:restaurant_id', Middleware.auth, RestaurantController.getRestaurant)
+        this.router.get('/:restaurant_id/menu', Middleware.auth, RestaurantController.getMenus)
         this.router.get('/:restaurant_id/menu/:menu_id', Middleware.auth, RestaurantController.getMenu)
     }
 
@@ -25,6 +27,7 @@ class RestaurantRoute {
     postRouter() {
         this.router.post('/create', Middleware.auth, Middleware.roleAccess, bannerUpload.single('banner'), RestaurantController.create)
         this.router.post('/:restaurant_id/menu', Middleware.auth, Middleware.roleAccess, Middleware.access, foodUpload.single('image'), RestaurantController.createMenu)
+        this.router.post('/:restaurant_id/menu/:menu_id/buy', Middleware.auth, RestaurantController.buy)
     }
 
     // for put request
