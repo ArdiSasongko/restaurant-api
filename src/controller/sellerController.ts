@@ -8,9 +8,7 @@ export class SellerController {
         const restaurant_id = req.params.restaurant_id
         try {
             const result = await orderModel.find({ restaurant_id: restaurant_id }, { _id: 1, status: 1 })
-
             if (!result) throw new CustomError(404, 'Order not found')
-
             res.status(200).json({
                 status_code: 200,
                 message: 'Orders found',
@@ -26,9 +24,7 @@ export class SellerController {
         const order_id = req.params.order_id
         try {
             const result = await orderModel.findOne({ restaurant_id: restaurant_id, _id: order_id })
-
             if (!result) throw new CustomError(404, 'Order not found')
-
             res.status(200).json({
                 status_code: 200,
                 message: 'Order found',
@@ -44,7 +40,6 @@ export class SellerController {
         const order_id = req.params.order_id
         try {
             const result = await SellerService.confirmOrder(order_id, restaurant_id)
-
             res.status(200).json({
                 status_code: 200,
                 message: `Success confirm order_id ${result._id}`
@@ -59,7 +54,6 @@ export class SellerController {
         const order_id = req.params.order_id
         try {
             const result = await SellerService.deliverOrder(order_id, restaurant_id)
-
             res.status(200).json({
                 status_code: 200,
                 message: `Success delivered order_id ${result._id}`
@@ -74,7 +68,6 @@ export class SellerController {
         const order_id = req.params.order_id
         try {
             const result = await SellerService.cancelOrder(order_id, restaurant_id)
-
             res.status(200).json({
                 status_code: 200,
                 message: `Success cancel order_id ${result._id}`

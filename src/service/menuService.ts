@@ -6,6 +6,7 @@ import { v2 as cloudinary } from 'cloudinary'
 import { Readable } from 'stream'
 import moment from "moment-timezone";
 import { restaurantModel } from "../model/restaurantModel";
+import { deleteImage, uploadImage } from "../utils/cloudinary";
 
 export class MenuService {
     static async create(data: any, restaurant_id: string, file: Express.Multer.File | undefined, image: string) {
@@ -17,22 +18,7 @@ export class MenuService {
             if (menu) throw new CustomError(400, 'Menu already exists')
 
             // save picture to cloudinary
-            let imgUrl = image
-
-            if (file) {
-                const stream = Readable.from(file.buffer)
-                const uploadResult = await new Promise((resolve, reject) => {
-                    const cloudStream = cloudinary.uploader.upload_stream({
-                        folder: 'menu'
-                    }, (error, result) => {
-                        if (error) reject(error)
-                        resolve(result)
-                    })
-                    stream.pipe(cloudStream)
-                })
-
-                imgUrl = (uploadResult as any).secure_url
-            }
+            const imgUrl = file ? await uploadImage(file, 'menu') : image
 
             // create object for save information
             const newMenu = {
@@ -56,11 +42,7 @@ export class MenuService {
 
             return saveMenu
         } catch (error) {
-            if (error instanceof ZodError) {
-                const formattedErrors = formatZodError(error)
-                throw new CustomError(400, "Validation Errors", formattedErrors)
-            }
-            throw error
+            handleError(error)
         }
     }
 
@@ -75,66 +57,40 @@ export class MenuService {
             // check if name menu already exists
             if (request.name === menu.name) throw new CustomError(400, 'Menu name already exists')
 
-            // check if not update name
-            if (!request.name) request.name = menu.name
+            // update field
+            const updateFields = {
+                name: request.name || menu.name,
+                picture: menu.picture,
+                price: request.price || menu.price,
+                description: request.description || menu.description,
+                amount: request.amount || menu.amount,
+                updated_at: moment().tz('Asia/Jakarta', true).format()
+            }
 
-            // check if not updare price
-            if (!request.price) request.price = menu.price
-
-            // check if not update description
-            if (!request.description) request.description = menu.description!
-
-            // check if not update amount
-            if (!request.amount) request.amount = menu.amount
-
-            // if update picture
-            let imgUrl = menu.picture
-
+            // if update file
             if (file) {
-                const stream = Readable.from(file.buffer)
-                const uploadResult = await new Promise((resolve, reject) => {
-                    const cloudStream = cloudinary.uploader.upload_stream({
-                        folder: 'menu'
-                    }, (error, result) => {
-                        if (error) reject(error)
-                        resolve(result)
-                    })
-                    stream.pipe(cloudStream)
-                })
-
-                imgUrl = (uploadResult as any).secure_url
-
-                // delete old picture
-                if (menu.picture) {
-                    const public_id = menu.picture.split('/').pop()?.split('.')[0]
-                    if (public_id) {
-                        await cloudinary.uploader.destroy(public_id)
-                    }
-                }
+                updateFields.picture = await uploadImage(file, 'menu')
+                await deleteImage(menu.picture!, 'menu')
             }
 
             // save update to database
 
-            const updateMenu = await menuModel.findByIdAndUpdate(menu_id, {
-                name: request.name,
-                picture: imgUrl,
-                price: request.price,
-                description: request.description,
-                amount: request.amount,
-                updated_at: moment().tz('Asia/Jakarta', true).format()
-            }, {
-                new: true
-            }).select('name picture price description amount updated_at')
+            const updateMenu = await menuModel.findByIdAndUpdate(menu_id, updateFields, { new: true })
+                .select('name picture price description amount updated_at')
 
             if (!updateMenu) throw new CustomError(400, 'Failed to update menu')
 
             return updateMenu
         } catch (error) {
-            if (error instanceof ZodError) {
-                const formattedErrors = formatZodError(error)
-                throw new CustomError(400, "Validation Errors", formattedErrors)
-            }
-            throw error
+            handleError(error)
         }
     }
+}
+
+function handleError(error: any): never {
+    if (error instanceof ZodError) {
+        const formattedErrors = formatZodError(error)
+        throw new CustomError(400, "Validation Error", formattedErrors);
+    }
+    throw error;
 }

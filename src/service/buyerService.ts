@@ -14,12 +14,10 @@ export class BuyerService {
 
             // check if restaurant exist
             const restaurant = await restaurantModel.findById(restaurant_id)
-
             if (!restaurant) throw new CustomError(404, 'Restaurant not found')
 
             // check if menu exist
             const menu = await menuModel.findById(menu_id)
-
             if (!menu) throw new CustomError(404, 'Menu not found')
 
             // check if menu amount still available
@@ -49,7 +47,6 @@ export class BuyerService {
 
             // update quantity in restaurant
             const newQuantity = menu.amount - request.quantity
-
             await menuModel.findByIdAndUpdate(menu_id, { amount: newQuantity })
 
             if (!saveOrder) throw new CustomError(400, 'failed for create order')
@@ -115,7 +112,6 @@ export class BuyerService {
     static async confirmOrder(order_id: string, user_id: string) {
         try {
             const order = await orderModel.findOne({ _id: order_id, user_id: user_id })
-
             if (!order) throw new CustomError(404, 'Order not found')
 
             // if order already cancel

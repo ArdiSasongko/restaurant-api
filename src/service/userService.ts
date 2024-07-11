@@ -7,6 +7,7 @@ import { ZodError } from "zod";
 import { Utils } from "../utils/utils";
 import moment from "moment-timezone";
 import { SendEmail } from "../utils/sendEmail";
+import { deleteImage, uploadImage } from "../utils/cloudinary";
 
 
 export class UserService {
@@ -19,7 +20,6 @@ export class UserService {
 
             // check if username or email already exits
             const user = await userModel.findOne({ $or: [{ username: request.username }, { email: request.email }] });
-
             if (user) throw new CustomError(409, 'Username or email already exists');
 
             // hash password
@@ -29,21 +29,7 @@ export class UserService {
             })
 
             // save image to cloudinary
-            let imageUrl = image;
-
-            if (file) {
-                const stream = Readable.from(file.buffer)
-                const uploadResult = await new Promise((resolve, reject) => {
-                    const cloudStream = cloudinary.uploader.upload_stream({
-                        folder: 'profile'
-                    }, (error, result) => {
-                        if (error) reject(error);
-                        resolve(result);
-                    })
-                    stream.pipe(cloudStream)
-                })
-                imageUrl = (uploadResult as any).secure_url;
-            }
+            const imageUrl = file ? await uploadImage(file, 'profile') : image
 
             // create object for save information
             const newUser = {
@@ -58,7 +44,6 @@ export class UserService {
             }
 
             const saveUser = await userModel.create(newUser);
-
             if (!saveUser) throw new CustomError(400, 'Failed to save user data')
 
             // send token to email
@@ -84,7 +69,6 @@ export class UserService {
         try {
             // Find email
             const findEmail = await userModel.findOne({ email })
-
             if (!findEmail) throw new CustomError(404, "Email not found")
 
             // check if email verified
@@ -156,7 +140,6 @@ export class UserService {
     static async login(data: any) {
         try {
             const request = await userValidator.login.parseAsync(data)
-
             if (!request.username && !request.email) throw new CustomError(404, "Please fill username or email for login");
 
             let user;
@@ -171,7 +154,6 @@ export class UserService {
 
             // check password if not match
             const isMatch = await Bun.password.verify(request.password, user.password, 'bcrypt')
-
             if (!isMatch) throw new CustomError(400, "Invalid Password, please try again")
 
             const payload = {
@@ -183,7 +165,6 @@ export class UserService {
             }
 
             const token = await Utils.signJWT(payload)
-
             if (!token) throw new CustomError(400, "Failed to generated token")
 
             return token
@@ -202,7 +183,6 @@ export class UserService {
 
             // check email if not found
             const user = await userModel.findOne({ email: request.email })
-
             if (!user) throw new CustomError(404, "Email not found")
 
             // create random token for otp
@@ -296,51 +276,29 @@ export class UserService {
 
             // find user by id
             const user = await userModel.findById(id)
-
             if (!user) throw new CustomError(404, "User not found")
 
             // check if username already exits
             const checkUsername = await userModel.findOne({ username: request.username })
-
             if (checkUsername) throw new CustomError(409, "Username already exits")
 
             // check if not update username
             if (!request.username) request.username = user.username
 
-            let imageUrl = user.picture
+            const updateFields = {
+                username: request.username || user.username,
+                picture: user.picture,
+                updated_at: moment().tz('Asia/Jakarta', true).format()
+            }
 
-            // check if update image
             if (file) {
-                const stream = Readable.from(file.buffer)
-                const uploadResult = await new Promise((resolve, reject) => {
-                    const cloudStream = cloudinary.uploader.upload_stream({
-                        folder: 'profile'
-                    }, (error, result) => {
-                        if (error) reject(error);
-                        resolve(result);
-                    })
-                    stream.pipe(cloudStream)
-                })
-                imageUrl = (uploadResult as any).secure_url;
-
-                // delete old image
-                if (user.picture) {
-                    const public_id = user.picture.split('/').pop()?.split('.')[0] // get image public_id from cloudinary
-                    if (public_id) {
-                        await cloudinary.uploader.destroy(`profile/${public_id}`)
-                    }
-                }
+                updateFields.picture = await uploadImage(file, 'profile')
+                await deleteImage(user.picture!, 'profile')
             }
 
             // update profile user
-            const updateProfile = await userModel.findByIdAndUpdate(id, {
-                username: request.username,
-                picture: imageUrl,
-                updated_at: moment().tz('Asia/Jakarta', true).format()
-            },
-                {
-                    new: true
-                }).select('name email username picture role')
+            const updateProfile = await userModel.findByIdAndUpdate(id, updateFields, { new: true })
+                .select('name email username picture role')
 
             if (!updateProfile) throw new CustomError(400, "Failed to update profile")
 

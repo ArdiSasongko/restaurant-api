@@ -2,14 +2,13 @@ import express from 'express';
 import { UserService } from '../service/userService';
 import { v2 as cloudinary } from 'cloudinary';
 import { ZodError } from "zod";
-import { CustomError, formatZodError } from '../utils/customError';
+import { CustomError, formatZodError, handleError } from '../utils/customError';
 import { userModel } from '../model/userModel';
 
 export class UserController {
     static async registerUser(req: express.Request, res: express.Response, next: express.NextFunction) {
-        const data = req.body
+        const { body: data, file } = req
         const role = req.query.role as string || 'buyer'
-        const file = req.file
         try {
             const defaultImg = Bun.env.DEFAULT_IMG!
             // Register user
@@ -20,23 +19,14 @@ export class UserController {
                 data: newUser
             })
         } catch (error) {
-            if (file) {
-                // Delete the uploaded file if it exists and an error occurred
-                cloudinary.uploader.destroy(file.filename);
-            }
-            if (error instanceof ZodError) {
-                const formattedErrors = formatZodError(error)
-                return next(new CustomError(400, "Validation Error", formattedErrors))
-            }
-            next(error)
+            await handleError(file, error, next)
         }
     }
 
     static async resendToken(req: express.Request, res: express.Response, next: express.NextFunction) {
-        const email = (req as any).user.email
+        const email = req.user.email
         try {
             const resend = await UserService.resendToken(email)
-
             if (!resend) {
                 throw new CustomError(400, "failed to resend TOKEN")
             } else {
@@ -52,7 +42,7 @@ export class UserController {
 
     static async emailVerified(req: express.Request, res: express.Response, next: express.NextFunction) {
         const data = req.body
-        const email = (req as any).user.email
+        const email = req.user.email
         try {
             const verified = await UserService.verifiedEmail(data, email)
 
@@ -131,7 +121,7 @@ export class UserController {
     }
 
     static async profile(req: express.Request, res: express.Response, next: express.NextFunction) {
-        const id = (req as any).user.id
+        const id = req.user.id
         try {
             const profile = await userModel.findById(id).select('name email username picture role')
 
@@ -150,9 +140,8 @@ export class UserController {
     }
 
     static async updateProfile(req: express.Request, res: express.Response, next: express.NextFunction) {
-        const data = req.body
-        const id = (req as any).user.id
-        const file = req.file
+        const { body: data, file } = req
+        const id = req.user.id
         try {
             const updateProfile = await UserService.updateProfile(data, id, file)
             if (!updateProfile) {
@@ -165,15 +154,7 @@ export class UserController {
                 data: updateProfile
             })
         } catch (error) {
-            if (file) {
-                // Delete the uploaded file if it exists and an error occurred
-                cloudinary.uploader.destroy(file.filename);
-            }
-            if (error instanceof ZodError) {
-                const formattedErrors = formatZodError(error)
-                return next(new CustomError(400, "Validation Error", formattedErrors))
-            }
-            next(error)
+            await handleError(file, error, next)
         }
     }
 }

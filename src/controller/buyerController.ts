@@ -6,7 +6,7 @@ import { historyModel } from '../model/historyModel'
 
 export class BuyerController {
     static async getOrders(req: express.Request, res: express.Response, next: express.NextFunction) {
-        const id = (req as any).user.id
+        const id = req.user.id
         try {
             const result = await orderModel.find({ user_id: id }, { _id: 1, status: 1 })
 
@@ -24,7 +24,7 @@ export class BuyerController {
 
     static async getOrder(req: express.Request, res: express.Response, next: express.NextFunction) {
         const order_id = req.params.order_id
-        const id = (req as any).user.id
+        const id = req.user.id
         try {
             const result = await orderModel.findOne({ _id: order_id, user_id: id })
 
@@ -42,7 +42,7 @@ export class BuyerController {
 
     static async canceledOrder(req: express.Request, res: express.Response, next: express.NextFunction) {
         const order_id = req.params.order_id
-        const id = (req as any).user.id
+        const id = req.user.id
         try {
             const result = await BuyerService.cancelOrder(order_id, id)
 
@@ -59,7 +59,7 @@ export class BuyerController {
 
     static async confirmOrder(req: express.Request, res: express.Response, next: express.NextFunction) {
         const order_id = req.params.order_id
-        const id = (req as any).user.id
+        const id = req.user.id
         try {
             await BuyerService.confirmOrder(order_id, id)
 
@@ -73,7 +73,7 @@ export class BuyerController {
     }
 
     static async getHistories(req: express.Request, res: express.Response, next: express.NextFunction) {
-        const id = (req as any).user.id
+        const id = req.user.id
         try {
             const result = await historyModel.find({ user_id: id }, { _id: 1, status: 1 })
 
@@ -90,7 +90,7 @@ export class BuyerController {
     }
 
     static async getHistory(req: express.Request, res: express.Response, next: express.NextFunction) {
-        const id = (req as any).user.id
+        const id = req.user.id
         const history_id = req.params.history_id
 
         try {

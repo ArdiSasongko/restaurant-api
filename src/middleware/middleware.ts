@@ -3,6 +3,13 @@ import express from 'express'
 import { Utils } from "../utils/utils";
 import { restaurantModel } from "../model/restaurantModel";
 
+// declare request
+declare module 'express-serve-static-core' {
+    interface Request {
+        user?: any;
+    }
+}
+
 export class Middleware {
     private static async validToken(token: string | undefined): Promise<string> {
         if (!token || !token.startsWith('Bearer ')) throw new CustomError(401, "Access denied, no token provided or incorrect format");
@@ -23,7 +30,8 @@ export class Middleware {
             }
 
             // casting req as any
-            (req as any).user = decode
+            req.user = decode
+            //req.user = decode
             next()
         } catch (error: any) {
             next(error)
@@ -33,7 +41,7 @@ export class Middleware {
     static async access(req: express.Request, res: express.Response, next: express.NextFunction) {
         try {
             const restaurant_id = req.params.restaurant_id
-            const owner_id = (req as any).user.id
+            const owner_id = req.user.id
 
             // find the owner of the restaurant
             const result = await restaurantModel.findOne({ _id: restaurant_id, owner_id: owner_id })
@@ -48,7 +56,7 @@ export class Middleware {
 
     static async roleAccess(req: express.Request, res: express.Response, next: express.NextFunction) {
         try {
-            const role = (req as any).user.role
+            const role = req.user.role
 
             // check role
             if (role !== 'seller' && role !== 'admin') throw new CustomError(400, 'Access denied, you are not authorized')

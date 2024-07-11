@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import { v2 as cloudinary } from 'cloudinary';
 import { ZodError } from "zod";
 import moment from "moment-timezone";
+import { deleteImage, uploadImage } from "../utils/cloudinary";
 
 export class RestaurantService {
     static async createRestaurant(data: any, id: string, file: Express.Multer.File | undefined, image: string) {
@@ -12,32 +13,13 @@ export class RestaurantService {
             const request = await restaurantValidator.create.parseAsync(data)
 
             // check the name restaurant if exists
-            const restaurantName = await restaurantModel.findOne({ name: request.name })
-            if (restaurantName) throw new CustomError(400, 'Restaurant name already exists')
+            await checkRestaurantName(request.name)
 
             // owner only can create one restaurant
-            const restaurantOwner = await restaurantModel.findOne({ owner_id: id })
-            if (restaurantOwner) throw new CustomError(400, 'Owner only can create one restaurant')
+            await ownerRestaurant(id)
 
             // save banner to cloudinary
-            console.log(image);
-            let imgUrl = image
-
-            if (file) {
-                const stream = Readable.from(file.buffer)
-                const uploadResult = await new Promise((resolve, reject) => {
-                    const cloudStream = cloudinary.uploader.upload_stream({
-                        folder: 'banner-restaurant'
-                    }, (error, result) => {
-                        if (error) {
-                            reject(error)
-                        }
-                        resolve(result)
-                    })
-                    stream.pipe(cloudStream)
-                })
-                imgUrl = (uploadResult as any).secure_url
-            }
+            const imgUrl = file ? await uploadImage(file, 'banner-restaurant') : image
 
             // create object for save information
             const newRestaurant = {
@@ -56,11 +38,7 @@ export class RestaurantService {
 
             return saveRestaurant
         } catch (error) {
-            if (error instanceof ZodError) {
-                const formattedErrors = formatZodError(error)
-                throw new CustomError(400, "Validation Error", formattedErrors);
-            }
-            throw error;
+            handleError(error)
         }
     }
 
@@ -70,73 +48,54 @@ export class RestaurantService {
 
             // check the restaurant if exists
             const restaurant = await restaurantModel.findById(restaurant_id)
-
             if (!restaurant) throw new CustomError(400, 'Restaurant not found')
 
             // check if name restaurant already exists
-            const restaurantName = await restaurantModel.findOne({ name: request.name })
-            if (restaurantName) throw new CustomError(400, 'Restaurant name already exists')
+            await checkRestaurantName(request.name!)
 
-            // check if not update name
-            if (!request.name) request.name = restaurant.name
+            // check update field
+            const updateFields = {
+                name: request.name || restaurant.name,
+                location: request.location || restaurant.location,
+                banner: restaurant.banner,
+                open_time: request.open_time || restaurant.open_time,
+                close_time: request.close_time || restaurant.close_time,
+                updated_at: moment().tz('Asia/Jakarta').format()
+            }
 
-            // check if not update location
-            if (!request.location) request.location = restaurant.location
-
-            // check if not update open time
-            if (!request.open_time) request.open_time = restaurant.open_time
-
-            // check if not update close time
-            if (!request.close_time) request.close_time = restaurant.close_time
-
-            // check if update banner
-            let imgUrl = restaurant.banner
-
+            // check if update file banner
             if (file) {
-                const stream = Readable.from(file.buffer)
-                const uploadResult = await new Promise((resolve, reject) => {
-                    const cloudStream = cloudinary.uploader.upload_stream({
-                        folder: 'banner-restaurant'
-                    }, (error, result) => {
-                        if (error) {
-                            reject(error)
-                        }
-                        resolve(result)
-                    })
-                    stream.pipe(cloudStream)
-                })
-                imgUrl = (uploadResult as any).secure_url
-
-                // delete old banner
-                if (restaurant.banner) {
-                    const public_id = restaurant.banner.split('/').pop()?.split('.')[0]
-                    if (public_id) {
-                        await cloudinary.uploader.destroy(`banner-restaurant/${public_id}`)
-                    }
-                }
+                updateFields.banner = await uploadImage(file, 'banner-restaurant')
+                await deleteImage(restaurant.banner!, 'banner-restaurant')
             }
 
             // update restaurant
-            const updateRestaurant = await restaurantModel.findByIdAndUpdate(restaurant_id, {
-                name: request.name,
-                location: request.location,
-                banner: imgUrl,
-                open_time: request.open_time,
-                close_time: request.close_time,
-                updated_at: moment().tz('Asia/Jakarta').format()
-            }, {
-                new: true
-            }).select(`name location banner open_time close_time updated_at`)
+            const updateRestaurant = await restaurantModel.findByIdAndUpdate(restaurant_id, updateFields, { new: true })
+                .select(`name location banner open_time close_time updated_at`)
 
             if (!updateRestaurant) throw new CustomError(400, 'Failed to update restaurant')
 
             return updateRestaurant
         } catch (error) {
-            if (error instanceof ZodError) {
-                const formattedErrors = formatZodError(error)
-                throw new CustomError(400, "Validation Error", formattedErrors);
-            }
-            throw error;
+            handleError(error)
         }
     }
+}
+
+async function checkRestaurantName(name: string): Promise<void> {
+    const restaurantName = await restaurantModel.findOne({ name: name })
+    if (restaurantName) throw new CustomError(400, 'Restaurant name already exists')
+}
+
+async function ownerRestaurant(id: string): Promise<void> {
+    const restaurantOwner = await restaurantModel.findOne({ owner_id: id })
+    if (restaurantOwner) throw new CustomError(400, 'Owner only can create one restaurant')
+}
+
+function handleError(error: any): never {
+    if (error instanceof ZodError) {
+        const formattedErrors = formatZodError(error)
+        throw new CustomError(400, "Validation Error", formattedErrors);
+    }
+    throw error;
 }
