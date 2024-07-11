@@ -1,9 +1,11 @@
 {
   "name": "restaurant-api",
-  "module": "src/server.ts",
+  "module": "index.ts",
+  "main": "src/server.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch run src/server.ts"
+    "dev": "bun --watch run src/server.ts",
+    "start": "bun src/server.ts"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",
