@@ -1,7 +1,6 @@
 {
   "name": "restaurant-api",
   "module": "index.ts",
-  "main": "src/server.ts",
   "type": "module",
   "scripts": {
     "dev": "bun --watch run src/server.ts",
