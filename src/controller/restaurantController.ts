@@ -43,13 +43,31 @@ export class RestaurantController {
 
     // for get all restaurants
     static async getRestaurants(req: express.Request, res: express.Response, next: express.NextFunction) {
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
+        const limit = parseInt(req.query.limit as string) || 5; // amount of fetch data
+        const skip = (page - 1) * limit
         try {
-            const result = await restaurantModel.find().select('banner name location open_time close_time')
-            if (!result) throw new CustomError(404, 'Restaurants not found')
+            const result = await restaurantModel.find()
+                .select('banner name location open_time close_time')
+                .skip(skip)
+                .limit(limit)
+
+            const total_data = await restaurantModel.countDocuments()
+            if (result.length === 0 && page === 1) throw new CustomError(404, 'Restaurants not found')
+
+            const total_pages = Math.ceil(total_data / limit)
+            if (page > total_pages) throw new CustomError(400, `Page ${page} exceeds the total pages ${total_pages}`)
+
             res.status(200).json({
                 status_code: 200,
                 message: 'Success to get all restaurants',
-                data: result
+                data: result,
+                pagination: {
+                    current_page: page,
+                    total_pages: total_pages,
+                    total_items: total_data,
+                    items_per_page: limit
+                }
             })
         } catch (error) {
             next(error)
@@ -111,14 +129,32 @@ export class RestaurantController {
     // for get all menus
     static async getMenus(req: express.Request, res: express.Response, next: express.NextFunction) {
         const restaurant_id = req.params.restaurant_id
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
+        const limit = parseInt(req.query.limit as string) || 5; // amount of fetch data
+        const skip = (page - 1) * limit
         try {
-            const result = await menuModel.find({ restaurant_id: restaurant_id }).select('name picture price')
-            if (!result) throw new CustomError(404, 'Menus not found')
+            const result = await menuModel.find({ restaurant_id: restaurant_id })
+                .select('name picture price')
+                .skip(skip)
+                .limit(limit)
+
+            const total_data = await menuModel.countDocuments({ restaurant_id: restaurant_id })
+            if (result.length === 0 && page === 1) throw new CustomError(404, 'Menus not found')
+
+            const total_pages = Math.ceil(total_data / limit)
+            if (page > total_pages) throw new CustomError(400, `Page ${page} exceeds the total pages ${total_pages}`)
+
             res.status(200).json({
                 status_code: 200,
                 message: 'Success to get all menus',
                 restaurant_id: `${restaurant_id}`,
-                data: result
+                data: result,
+                pagination: {
+                    current_page: page,
+                    total_pages: total_pages,
+                    total_items: total_data,
+                    items_per_page: limit
+                }
             })
         } catch (error) {
             next(error)
