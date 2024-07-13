@@ -62,14 +62,16 @@ export class UserController {
     static async login(req: express.Request, res: express.Response, next: express.NextFunction) {
         const data = req.body
         try {
-            const login = await UserService.login(data)
-            if (!login) {
-                throw new CustomError(400, 'Failed to login, please try again')
-            }
+            const result = await UserService.login(data)
+            if (!result) throw new CustomError(400, 'Failed to login, please try again')
+
             res.status(200).json({
                 status_code: 200,
                 message: 'login success',
-                data: login
+                data: {
+                    token: result.token,
+                    refresh_token: result.refresh_token
+                }
             })
         } catch (error) {
             if (error instanceof ZodError) {
@@ -155,6 +157,28 @@ export class UserController {
             })
         } catch (error) {
             await handleError(file, error, next)
+        }
+    }
+
+    static async refreshToken(req: express.Request, res: express.Response, next: express.NextFunction) {
+        const data = req.body
+        try {
+            const result = await UserService.refreshToken(data)
+
+            res.status(200).json({
+                status_code: 200,
+                message: 'success create new tokens',
+                data: {
+                    token: result.newToken,
+                    refresh_token: result.newRefreshToken
+                }
+            })
+        } catch (error) {
+            if (error instanceof ZodError) {
+                const formattedErrors = formatZodError(error)
+                throw new CustomError(400, "Validation Error", formattedErrors);
+            }
+            next(error);
         }
     }
 }

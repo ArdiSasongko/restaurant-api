@@ -1,6 +1,15 @@
 import jwt from 'jsonwebtoken';
 import { CustomError } from './customError';
 
+// interface for refresh token
+interface JWTPayload {
+    id: string;
+    email: string;
+    username: string;
+    is_verified: boolean;
+    role: string;
+}
+
 export class Utils {
     public MAX_TIME_TOKEN: number = 5 * 60 * 1000
 
@@ -15,7 +24,7 @@ export class Utils {
     static async signJWT(payload: any): Promise<string> {
         const sign = Bun.env.JWT_SIGN!
         const expiredOption: jwt.SignOptions = {
-            expiresIn: '1d',
+            expiresIn: '15m',
         }
 
         const token = await jwt.sign(payload, sign, expiredOption)
@@ -34,6 +43,38 @@ export class Utils {
                         reject(err);
                     } else {
                         resolve(decodedToken);
+                    }
+                });
+            });
+
+            return decoded;
+        } catch (error: any) {
+            throw new CustomError(400, error.message)
+        }
+    }
+
+    static async signJWTRefresh(payload: any): Promise<string> {
+        const sign = Bun.env.JWT_SIGN_REFRESH!
+        const expiredOption: jwt.SignOptions = {
+            expiresIn: '30d',
+        }
+
+        const token = await jwt.sign(payload, sign, expiredOption)
+        return token
+    }
+
+    static async decodeJWTRefresh(token: string) {
+        try {
+            const secret = Bun.env.JWT_SIGN_REFRESH!
+            if (!secret) {
+                throw new CustomError(500, "Internal server error: JWT secret not defined");
+            }
+            const decoded = await new Promise<JWTPayload>((resolve, reject) => {
+                jwt.verify(token, secret, (err, decodedToken) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(decodedToken as JWTPayload);
                     }
                 });
             });

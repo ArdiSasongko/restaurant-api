@@ -9,6 +9,14 @@ import moment from "moment-timezone";
 import { SendEmail } from "../utils/sendEmail";
 import { deleteImage, uploadImage } from "../utils/cloudinary";
 
+// interface for refresh token
+interface JWTPayload {
+    id: string;
+    email: string;
+    username: string;
+    is_verified: boolean;
+    role: string;
+}
 
 export class UserService {
     static async registerUser(data: any, file: Express.Multer.File | undefined, image: string, role: string) {
@@ -165,9 +173,15 @@ export class UserService {
             }
 
             const token = await Utils.signJWT(payload)
+            const refresh_token = await Utils.signJWTRefresh(payload)
+
             if (!token) throw new CustomError(400, "Failed to generated token")
 
-            return token
+            const data_token = {
+                token,
+                refresh_token
+            }
+            return data_token
         } catch (error) {
             if (error instanceof ZodError) {
                 const formattedErrors = formatZodError(error)
@@ -303,6 +317,42 @@ export class UserService {
             if (!updateProfile) throw new CustomError(400, "Failed to update profile")
 
             return updateProfile
+        } catch (error) {
+            if (error instanceof ZodError) {
+                const formattedErrors = formatZodError(error)
+                throw new CustomError(400, "Validation Error", formattedErrors);
+            }
+            throw error;
+        }
+    }
+
+    static async refreshToken(data: any) {
+        try {
+            const request = await userValidator.refreshToken.parseAsync(data)
+            const token = request.refresh_token
+
+            const decode = await Utils.decodeJWTRefresh(token)
+            if (!decode) throw new CustomError(400, 'invalid refresh token')
+
+            const payload: JWTPayload = {
+                id: decode.id,
+                email: decode.email,
+                username: decode.username,
+                is_verified: decode.is_verified,
+                role: decode.role
+            }
+
+            const newToken = await Utils.signJWT(payload)
+            const newRefreshToken = await Utils.signJWTRefresh(payload)
+
+            if (!newToken || !newRefreshToken) throw new CustomError(400, 'failed for generated new tokens')
+
+            const data_token = {
+                newToken,
+                newRefreshToken
+            }
+
+            return data_token
         } catch (error) {
             if (error instanceof ZodError) {
                 const formattedErrors = formatZodError(error)

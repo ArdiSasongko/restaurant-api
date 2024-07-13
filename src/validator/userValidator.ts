@@ -33,4 +33,8 @@ export class userValidator {
         new_password: z.string().min(6).max(255),
         valid_password: z.string().min(6).max(255)
     })
+
+    static refreshToken = z.object({
+        refresh_token: z.string({ message: 'Need Refresh Token for generated new TOKEN and Refresh TOKEN' })
+    })
 }

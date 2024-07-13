@@ -25,6 +25,7 @@ class UserRoute {
     postRouter() {
         this.router.post('/register', profileUpload.single('image'), UserController.registerUser)
         this.router.post('/login', UserController.login)
+        this.router.post('/refresh-token', UserController.refreshToken)
         this.router.post('/forget/password', UserController.forgetPassword)
     }
 
