@@ -27,6 +27,7 @@ class UserRoute {
         this.router.post('/login', UserController.login)
         this.router.post('/refresh-token', UserController.refreshToken)
         this.router.post('/forget/password', UserController.forgetPassword)
+        this.router.post('/logout', Middleware.auth, UserController.logout)
     }
 
     // for put request

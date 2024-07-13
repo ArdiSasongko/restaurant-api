@@ -4,6 +4,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import { ZodError } from "zod";
 import { CustomError, formatZodError, handleError } from '../utils/customError';
 import { userModel } from '../model/userModel';
+import { Redis } from '../utils/redis';
 
 export class UserController {
     static async registerUser(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -179,6 +180,24 @@ export class UserController {
                 throw new CustomError(400, "Validation Error", formattedErrors);
             }
             next(error);
+        }
+    }
+
+    static async logout(req: express.Request, res: express.Response, next: express.NextFunction) {
+        const id = req.user.id
+        try {
+            const result = await userModel.findById(id)
+
+            if (!result) throw new CustomError(404, 'User not exists')
+
+            await Redis.delRefreshToken(id)
+
+            res.status(200).json({
+                status_code: 200,
+                message: 'Logout Success'
+            })
+        } catch (error) {
+            next(error)
         }
     }
 }

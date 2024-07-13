@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { CustomError } from './customError';
+import { Redis } from './redis';
 
 // interface for refresh token
 interface JWTPayload {
@@ -60,6 +61,7 @@ export class Utils {
         }
 
         const token = await jwt.sign(payload, sign, expiredOption)
+        await Redis.setRefreshToken(payload.id, token)
         return token
     }
 
@@ -78,6 +80,11 @@ export class Utils {
                     }
                 });
             });
+
+            // verification
+            const storedToken = await Redis.getRefreshToken(decoded.id)
+
+            if (storedToken !== token) throw new CustomError(400, 'Your Session is Expired!, please login again')
 
             return decoded;
         } catch (error: any) {

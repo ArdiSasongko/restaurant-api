@@ -7,6 +7,7 @@ import userRoute from './route/userRoute'
 import restaurantRoute from './route/restaurantRoute'
 import buyerRoute from './route/buyerRoute'
 import sellerRoute from './route/sellerRoute'
+import { Redis } from './utils/redis'
 
 export class Server {
     // declaration app
@@ -23,6 +24,7 @@ export class Server {
     setConfig() {
         this.app.use(express.json())
         ConnectDB()
+        Redis.connectRedis()
         this.app.use(cors())
         this.setBodyParser()
     }
